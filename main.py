@@ -229,6 +229,35 @@ def build_tree_structure(node, parent_id="root", node_id=0, tree_data=None, leve
     return child_node_id
 
 
+def format_text_with_linebreaks(text, max_chars_per_line=25, max_lines=3):
+    """Formate le texte avec des retours à la ligne pour améliorer la lisibilité"""
+    words = text.split()
+    lines = []
+    current_line = ""
+
+    for word in words:
+        # Si ajouter ce mot dépasse la limite de caractères
+        if len(current_line + " " + word) > max_chars_per_line and current_line:
+            lines.append(current_line)
+            current_line = word
+        else:
+            if current_line:
+                current_line += " " + word
+            else:
+                current_line = word
+
+    # Ajouter la dernière ligne
+    if current_line:
+        lines.append(current_line)
+
+    # Limiter le nombre de lignes et ajouter "..." si nécessaire
+    if len(lines) > max_lines:
+        lines = lines[:max_lines-1]
+        lines.append(lines[-1][:max_chars_per_line-3] + "...")
+
+    return "<br>".join(lines)
+
+
 def create_decision_tree_visualization(tree_data, user_path=None):
     """Crée la visualisation de l'arbre décisionnel avec Plotly"""
 
@@ -247,19 +276,22 @@ def create_decision_tree_visualization(tree_data, user_path=None):
         hoverinfo='text',
         textposition="middle center",
         textfont=dict(
-            size=[14 if user_path and is_node_in_path(
-                n, user_path) else 12 for n in question_nodes],
-            color=["white" if user_path and is_node_in_path(
-                n, user_path) else "white" for n in question_nodes],
+            size=[13 if user_path and is_node_in_path(
+                n, user_path) else 11 for n in question_nodes],
+            color="white",  # Toujours blanc pour la lisibilité sur fond bleu
             family="Arial Black"
         ),
         marker=dict(
-            size=[110 if user_path and is_node_in_path(
-                n, user_path) else 85 for n in question_nodes],
+            size=[120 if user_path and is_node_in_path(
+                n, user_path) else 95 for n in question_nodes],
             color=["#1E5091" if user_path and is_node_in_path(
                 n, user_path) else "#4472C4" for n in question_nodes],
-            line=dict(width=[4 if user_path and is_node_in_path(n, user_path) else 2 for n in question_nodes],
-                      color=["#FFD700" if user_path and is_node_in_path(n, user_path) else "darkgray" for n in question_nodes])
+            line=dict(
+                width=[4 if user_path and is_node_in_path(
+                    n, user_path) else 2 for n in question_nodes],
+                color=["#FFD700" if user_path and is_node_in_path(
+                    n, user_path) else "darkgray" for n in question_nodes]
+            )
         ),
         name="Questions",
         showlegend=False
@@ -274,7 +306,7 @@ def create_decision_tree_visualization(tree_data, user_path=None):
         hoverinfo='text',
         textposition="middle center",
         textfont=dict(
-            size=[16 if user_path and is_node_in_path(
+            size=[15 if user_path and is_node_in_path(
                 n, user_path) else 12 for n in option_nodes],
             color=["#FF0000" if user_path and is_node_in_path(
                 n, user_path) else "#228B22" for n in option_nodes],
@@ -284,7 +316,7 @@ def create_decision_tree_visualization(tree_data, user_path=None):
         showlegend=False
     )
 
-    # Trace pour les recommandations (avec rectangles)
+    # Trace pour les recommandations (avec rectangles optimisés)
     recommendation_trace = go.Scatter(
         x=[n["x"] for n in recommendation_nodes],
         y=[n["y"] for n in recommendation_nodes],
@@ -293,40 +325,44 @@ def create_decision_tree_visualization(tree_data, user_path=None):
         hoverinfo='text',
         textposition="middle center",
         textfont=dict(
-            size=[10 if user_path and is_node_in_path(
-                n, user_path) else 9 for n in recommendation_nodes],
-            color=["black" if user_path and is_node_in_path(
-                n, user_path) else "black" for n in recommendation_nodes]
+            size=[9 if user_path and is_node_in_path(
+                n, user_path) else 8 for n in recommendation_nodes],
+            color="black"
         ),
         marker=dict(
-            size=[130 if user_path and is_node_in_path(
-                n, user_path) else 105 for n in recommendation_nodes],
+            size=[80 if user_path and is_node_in_path(
+                n, user_path) else 65 for n in recommendation_nodes],  # Taille réduite
             color=["#FFD700" if user_path and is_node_in_path(
                 n, user_path) else "#FF8C00" for n in recommendation_nodes],
-            line=dict(width=[4 if user_path and is_node_in_path(n, user_path) else 2 for n in recommendation_nodes],
-                      color=["#FF0000" if user_path and is_node_in_path(n, user_path) else "darkgray" for n in recommendation_nodes]),
-            symbol="square"  # Utiliser des rectangles pour les recommandations
+            line=dict(
+                width=[4 if user_path and is_node_in_path(
+                    n, user_path) else 2 for n in recommendation_nodes],
+                color=["#FF0000" if user_path and is_node_in_path(
+                    n, user_path) else "darkgray" for n in recommendation_nodes]
+            ),
+            symbol="square"
         ),
         name="Recommandations",
         showlegend=False
     )
 
-    # Ajouter le texte pour chaque type de nœud
+    # Ajouter le texte formaté pour chaque type de nœud
     for node in question_nodes:
-        words = node["label"].split()
-        if len(words) > 6:
-            mid = len(words) // 2
-            display_text = " ".join(
-                words[:mid]) + "<br>" + " ".join(words[mid:])
-        else:
-            display_text = node["label"]
+        display_text = format_text_with_linebreaks(
+            node["label"], max_chars_per_line=30, max_lines=3)
         question_trace['text'] += (display_text,)
 
     for node in option_nodes:
-        option_trace['text'] += (node["label"],)
+        # Pour les options, garder le texte simple
+        display_text = format_text_with_linebreaks(
+            node["label"], max_chars_per_line=20, max_lines=2)
+        option_trace['text'] += (display_text,)
 
     for node in recommendation_nodes:
-        recommendation_trace['text'] += (node["label"],)
+        # Pour les recommandations, utiliser un formatage plus compact
+        display_text = format_text_with_linebreaks(
+            node["label"], max_chars_per_line=20, max_lines=4)
+        recommendation_trace['text'] += (display_text,)
 
     # Créer les arêtes
     edge_trace = []
@@ -375,19 +411,17 @@ def create_decision_tree_visualization(tree_data, user_path=None):
             showgrid=False,
             zeroline=False,
             showticklabels=False,
-            # Plage élargie pour éviter les coupures
             range=[-15, 15]
         ),
         yaxis=dict(
             showgrid=False,
             zeroline=False,
             showticklabels=False,
-            # Plage élargie pour l'arbre complet
             range=[-20, 2]
         ),
         plot_bgcolor='white',
-        height=800,  # Hauteur fixe pour une meilleure lisibilité
-        width=1200   # Largeur fixe
+        height=800,
+        width=1200
     ))
 
     return fig
@@ -419,32 +453,45 @@ def filter_path_for_tree(path, clinical_situation):
 
 
 def is_node_in_path(node, user_path):
-    """Vérifie si un nœud est dans le chemin utilisateur"""
+    """Vérifie si un nœud est dans le chemin utilisateur avec plus de précision"""
     if not user_path:
         return False
-
-    # Debug: affichage pour comprendre les correspondances
-    # st.write(f"Checking node: {node['label']} (type: {node['type']})")
-    # st.write(f"Path: {[step['question'] + ' -> ' + step['answer'] for step in user_path]}")
 
     for step in user_path:
         # Correspondance pour les questions
         if node["type"] == "question":
-            # Correspondance exacte ou partielle pour les questions
-            node_words = set(node["label"].lower().split())
-            step_words = set(step["question"].lower().split())
-            # Si au moins 3 mots en commun ou correspondance partielle
-            if len(node_words.intersection(step_words)) >= 3 or node["label"].lower() in step["question"].lower():
+            # Normalisation des textes pour la comparaison
+            node_text = node["label"].lower().strip()
+            step_text = step["question"].lower().strip()
+
+            # Correspondance exacte ou par mots-clés importants
+            node_words = set(node_text.split())
+            step_words = set(step_text.split())
+
+            # Mots-clés importants qui doivent correspondre
+            important_words = {"enceinte", "grossesse", "gravité", "complication",
+                               "rétention", "prostatite", "récurrence", "prophylaxie"}
+
+            # Si les textes contiennent des mots-clés importants similaires
+            node_important = node_words.intersection(important_words)
+            step_important = step_words.intersection(important_words)
+
+            if node_important and step_important and node_important.intersection(step_important):
+                return True
+
+            # Ou si au moins 50% des mots-clés correspondent
+            if len(node_words.intersection(step_words)) >= max(3, len(node_words) * 0.5):
                 return True
 
         # Correspondance pour les options
         elif node["type"] == "option":
-            # Correspondance exacte pour les options
-            if step["answer"].lower() == node["label"].lower():
+            # Correspondance exacte pour les options (plus stricte)
+            if step["answer"].lower().strip() == node["label"].lower().strip():
                 return True
 
-    # Pour les recommandations, vérifier si on est au bout du chemin
+    # Pour les recommandations, vérifier si on est vraiment au bout du chemin
     if node["type"] == "recommendation" and user_path:
+        # Ne marquer que si c'est vraiment la recommandation finale
         return True
 
     return False
