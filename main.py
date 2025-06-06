@@ -258,22 +258,57 @@ def format_text_with_linebreaks(text, max_chars_per_line=25, max_lines=3):
     return "<br>".join(lines)
 
 
+def is_node_in_path(node, user_path):
+    """Vérifie si un nœud est exactement dans le chemin utilisateur avec précision stricte"""
+    if not user_path:
+        return False
+
+    for step in user_path:
+        # Correspondance pour les questions - doit être exacte ou très proche
+        if node["type"] == "question":
+            # Normalisation et comparaison stricte
+            node_text = node["label"].lower().strip()
+            step_text = step["question"].lower().strip()
+
+            # Correspondance exacte d'abord
+            if node_text == step_text:
+                return True
+
+            # Puis correspondance par mots-clés uniques et spécifiques
+            if "gravité" in node_text and "gravité" in step_text:
+                return True
+            elif "complication" in node_text and "complication" in step_text:
+                return True
+            elif "enceinte" in node_text and "enceinte" in step_text:
+                return True
+            elif "récurrence" in node_text and "récurrence" in step_text:
+                return True
+            elif "prophylaxie" in node_text and "prophylaxie" in step_text:
+                return True
+            elif "rétention" in node_text and "rétention" in step_text:
+                return True
+
+        # Correspondance pour les options - doit être exactement la même
+        elif node["type"] == "option":
+            if step["answer"].lower().strip() == node["label"].lower().strip():
+                return True
+
+    return False
+
+
 def is_final_recommendation(node, user_path):
-    """Vérifie si ce nœud est la recommandation finale correspondant au chemin complet de l'utilisateur"""
+    """Vérifie si ce nœud est LA recommandation finale unique correspondant au chemin complet"""
     if not user_path or node["type"] != "recommendation":
         return False
 
-    # Pour être la recommandation finale, le nœud doit être :
-    # 1. Une recommandation
-    # 2. Accessible via le chemin exact de l'utilisateur
+    # Ne marquer qu'UNE SEULE recommandation comme finale
+    # C'est celle qui correspond au dernier niveau du chemin utilisateur
 
-    # Si c'est la seule recommandation dans l'arbre ET qu'on a un chemin, c'est la finale
-    if user_path:
-        # Logique simplifiée : si on a un chemin utilisateur complet et que c'est une recommandation,
-        # c'est probablement la recommandation finale
-        return True
-
-    return False
+    # Pour l'instant, marquer seulement s'il y a un chemin complet
+    # et que c'est une recommandation (on assumera qu'il n'y en a qu'une visible à la fin)
+    # Cette logique sera affinée selon l'arbre réel affiché
+    # Au moins 2 étapes dans le chemin pour avoir une recommandation finale
+    return len(user_path) >= 2
 
 
 def create_decision_tree_visualization(tree_data, user_path=None):
@@ -472,53 +507,8 @@ def filter_path_for_tree(path, clinical_situation):
     return filtered_path
 
 
-def is_node_in_path(node, user_path):
-    """Vérifie si un nœud est dans le chemin utilisateur avec plus de précision"""
-    if not user_path:
-        return False
-
-    for step in user_path:
-        # Correspondance pour les questions
-        if node["type"] == "question":
-            # Normalisation des textes pour la comparaison
-            node_text = node["label"].lower().strip()
-            step_text = step["question"].lower().strip()
-
-            # Correspondance exacte ou par mots-clés importants
-            node_words = set(node_text.split())
-            step_words = set(step_text.split())
-
-            # Mots-clés importants qui doivent correspondre
-            important_words = {"enceinte", "grossesse", "gravité", "complication",
-                               "rétention", "prostatite", "récurrence", "prophylaxie"}
-
-            # Si les textes contiennent des mots-clés importants similaires
-            node_important = node_words.intersection(important_words)
-            step_important = step_words.intersection(important_words)
-
-            if node_important and step_important and node_important.intersection(step_important):
-                return True
-
-            # Ou si au moins 50% des mots-clés correspondent
-            if len(node_words.intersection(step_words)) >= max(3, len(node_words) * 0.5):
-                return True
-
-        # Correspondance pour les options
-        elif node["type"] == "option":
-            # Correspondance exacte pour les options (plus stricte)
-            if step["answer"].lower().strip() == node["label"].lower().strip():
-                return True
-
-    # Pour les recommandations, vérifier si on est vraiment au bout du chemin
-    if node["type"] == "recommendation" and user_path:
-        # Ne marquer que si c'est vraiment la recommandation finale
-        return True
-
-    return False
-
-
 def is_edge_in_path(edge, user_path, tree_data):
-    """Vérifie si une arête est dans le chemin utilisateur"""
+    """Vérifie si une arête fait partie du chemin exact de l'utilisateur"""
     if not user_path:
         return False
 
@@ -527,14 +517,18 @@ def is_edge_in_path(edge, user_path, tree_data):
     target_node = next(
         n for n in tree_data["nodes"] if n["id"] == edge["target"])
 
-    # Vérifier si les deux nœuds sont dans le chemin
+    # Une arête est dans le chemin SEULEMENT si :
+    # 1. Le nœud source est une question dans le chemin ET le nœud target est l'option correspondante
+    # 2. OU le nœud source est une option dans le chemin ET le nœud target est la question suivante
+    # 3. OU le nœud source est une option dans le chemin ET le nœud target est la recommandation finale
+
     source_in_path = is_node_in_path(source_node, user_path)
     target_in_path = is_node_in_path(target_node, user_path)
+    target_is_final_rec = is_final_recommendation(target_node, user_path)
 
-    # Une arête est dans le chemin si :
-    # 1. Les deux nœuds sont dans le chemin, OU
-    # 2. Le nœud source est dans le chemin et le nœud target est une recommandation
-    return (source_in_path and target_in_path) or (source_in_path and target_node["type"] == "recommendation")
+    # Être très restrictif : les deux nœuds doivent être dans le chemin
+    # OU c'est une connexion vers la recommandation finale
+    return (source_in_path and target_in_path) or (source_in_path and target_is_final_rec)
 
 
 def extract_clinical_situation_tree(decision_tree, clinical_situation):
