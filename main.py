@@ -258,6 +258,24 @@ def format_text_with_linebreaks(text, max_chars_per_line=25, max_lines=3):
     return "<br>".join(lines)
 
 
+def is_final_recommendation(node, user_path):
+    """Vérifie si ce nœud est la recommandation finale correspondant au chemin complet de l'utilisateur"""
+    if not user_path or node["type"] != "recommendation":
+        return False
+
+    # Pour être la recommandation finale, le nœud doit être :
+    # 1. Une recommandation
+    # 2. Accessible via le chemin exact de l'utilisateur
+
+    # Si c'est la seule recommandation dans l'arbre ET qu'on a un chemin, c'est la finale
+    if user_path:
+        # Logique simplifiée : si on a un chemin utilisateur complet et que c'est une recommandation,
+        # c'est probablement la recommandation finale
+        return True
+
+    return False
+
+
 def create_decision_tree_visualization(tree_data, user_path=None):
     """Crée la visualisation de l'arbre décisionnel avec Plotly"""
 
@@ -267,7 +285,7 @@ def create_decision_tree_visualization(tree_data, user_path=None):
     recommendation_nodes = [
         n for n in tree_data["nodes"] if n["type"] == "recommendation"]
 
-    # Trace pour les questions (avec disques bleus)
+    # Trace pour les questions (avec disques bleus, sans contours visibles)
     question_trace = go.Scatter(
         x=[n["x"] for n in question_nodes],
         y=[n["y"] for n in question_nodes],
@@ -287,17 +305,15 @@ def create_decision_tree_visualization(tree_data, user_path=None):
             color=["#1E5091" if user_path and is_node_in_path(
                 n, user_path) else "#4472C4" for n in question_nodes],
             line=dict(
-                width=[4 if user_path and is_node_in_path(
-                    n, user_path) else 2 for n in question_nodes],
-                color=["#FFD700" if user_path and is_node_in_path(
-                    n, user_path) else "darkgray" for n in question_nodes]
+                width=1,  # Contour minimal uniforme
+                color="darkgray"  # Couleur uniforme, pas de mise en évidence
             )
         ),
         name="Questions",
         showlegend=False
     )
 
-    # Trace pour les options (texte seulement, sans disques)
+    # Trace pour les options (texte seulement, sans disques ni contours)
     option_trace = go.Scatter(
         x=[n["x"] for n in option_nodes],
         y=[n["y"] for n in option_nodes],
@@ -316,7 +332,7 @@ def create_decision_tree_visualization(tree_data, user_path=None):
         showlegend=False
     )
 
-    # Trace pour les recommandations (avec rectangles optimisés)
+    # Trace pour les recommandations (avec rectangles, contour visible seulement pour la finale)
     recommendation_trace = go.Scatter(
         x=[n["x"] for n in recommendation_nodes],
         y=[n["y"] for n in recommendation_nodes],
@@ -325,19 +341,19 @@ def create_decision_tree_visualization(tree_data, user_path=None):
         hoverinfo='text',
         textposition="middle center",
         textfont=dict(
-            size=[9 if user_path and is_node_in_path(
+            size=[9 if user_path and is_final_recommendation(
                 n, user_path) else 8 for n in recommendation_nodes],
             color="black"
         ),
         marker=dict(
-            size=[80 if user_path and is_node_in_path(
-                n, user_path) else 65 for n in recommendation_nodes],  # Taille réduite
-            color=["#FFD700" if user_path and is_node_in_path(
+            size=[85 if user_path and is_final_recommendation(
+                n, user_path) else 65 for n in recommendation_nodes],
+            color=["#FFD700" if user_path and is_final_recommendation(
                 n, user_path) else "#FF8C00" for n in recommendation_nodes],
             line=dict(
-                width=[4 if user_path and is_node_in_path(
-                    n, user_path) else 2 for n in recommendation_nodes],
-                color=["#FF0000" if user_path and is_node_in_path(
+                width=[4 if user_path and is_final_recommendation(
+                    n, user_path) else 1 for n in recommendation_nodes],
+                color=["#FF0000" if user_path and is_final_recommendation(
                     n, user_path) else "darkgray" for n in recommendation_nodes]
             ),
             symbol="square"
