@@ -285,7 +285,7 @@ def create_decision_tree_visualization(tree_data, user_path=None):
     recommendation_nodes = [
         n for n in tree_data["nodes"] if n["type"] == "recommendation"]
 
-    # Trace pour les questions (avec disques bleus, sans contours visibles)
+    # Trace pour les questions (avec disques bleus, texte noir)
     question_trace = go.Scatter(
         x=[n["x"] for n in question_nodes],
         y=[n["y"] for n in question_nodes],
@@ -296,7 +296,7 @@ def create_decision_tree_visualization(tree_data, user_path=None):
         textfont=dict(
             size=[13 if user_path and is_node_in_path(
                 n, user_path) else 11 for n in question_nodes],
-            color="white",  # Toujours blanc pour la lisibilité sur fond bleu
+            color="black",  # Texte noir pour tous
             family="Arial Black"
         ),
         marker=dict(
@@ -305,15 +305,17 @@ def create_decision_tree_visualization(tree_data, user_path=None):
             color=["#1E5091" if user_path and is_node_in_path(
                 n, user_path) else "#4472C4" for n in question_nodes],
             line=dict(
-                width=1,  # Contour minimal uniforme
-                color="darkgray"  # Couleur uniforme, pas de mise en évidence
+                width=[3 if user_path and is_node_in_path(
+                    n, user_path) else 1 for n in question_nodes],
+                color=["#00AA00" if user_path and is_node_in_path(
+                    n, user_path) else "darkgray" for n in question_nodes]  # Vert pour le chemin
             )
         ),
         name="Questions",
         showlegend=False
     )
 
-    # Trace pour les options (texte seulement, sans disques ni contours)
+    # Trace pour les options (texte noir, souligné en vert si dans le chemin)
     option_trace = go.Scatter(
         x=[n["x"] for n in option_nodes],
         y=[n["y"] for n in option_nodes],
@@ -324,15 +326,14 @@ def create_decision_tree_visualization(tree_data, user_path=None):
         textfont=dict(
             size=[15 if user_path and is_node_in_path(
                 n, user_path) else 12 for n in option_nodes],
-            color=["#FF0000" if user_path and is_node_in_path(
-                n, user_path) else "#228B22" for n in option_nodes],
+            color="black",  # Texte noir pour tous
             family="Arial Black"
         ),
         name="Options",
         showlegend=False
     )
 
-    # Trace pour les recommandations (avec rectangles, contour visible seulement pour la finale)
+    # Trace pour les recommandations (texte noir, contour vert pour la finale)
     recommendation_trace = go.Scatter(
         x=[n["x"] for n in recommendation_nodes],
         y=[n["y"] for n in recommendation_nodes],
@@ -343,7 +344,7 @@ def create_decision_tree_visualization(tree_data, user_path=None):
         textfont=dict(
             size=[9 if user_path and is_final_recommendation(
                 n, user_path) else 8 for n in recommendation_nodes],
-            color="black"
+            color="black"  # Texte noir pour tous
         ),
         marker=dict(
             size=[85 if user_path and is_final_recommendation(
@@ -353,8 +354,8 @@ def create_decision_tree_visualization(tree_data, user_path=None):
             line=dict(
                 width=[4 if user_path and is_final_recommendation(
                     n, user_path) else 1 for n in recommendation_nodes],
-                color=["#FF0000" if user_path and is_final_recommendation(
-                    n, user_path) else "darkgray" for n in recommendation_nodes]
+                color=["#00AA00" if user_path and is_final_recommendation(
+                    n, user_path) else "darkgray" for n in recommendation_nodes]  # Vert pour la finale
             ),
             symbol="square"
         ),
@@ -369,9 +370,12 @@ def create_decision_tree_visualization(tree_data, user_path=None):
         question_trace['text'] += (display_text,)
 
     for node in option_nodes:
-        # Pour les options, garder le texte simple
+        # Pour les options, ajouter un soulignement vert si dans le chemin
         display_text = format_text_with_linebreaks(
             node["label"], max_chars_per_line=20, max_lines=2)
+        if user_path and is_node_in_path(node, user_path):
+            # Utiliser des balises HTML pour souligner en vert
+            display_text = f'<span style="text-decoration: underline; text-decoration-color: #00AA00; text-decoration-thickness: 3px;">{display_text}</span>'
         option_trace['text'] += (display_text,)
 
     for node in recommendation_nodes:
@@ -380,7 +384,7 @@ def create_decision_tree_visualization(tree_data, user_path=None):
             node["label"], max_chars_per_line=20, max_lines=4)
         recommendation_trace['text'] += (display_text,)
 
-    # Créer les arêtes
+    # Créer les arêtes (vert pour le chemin choisi)
     edge_trace = []
     for edge in tree_data["edges"]:
         source_node = next(
@@ -388,10 +392,10 @@ def create_decision_tree_visualization(tree_data, user_path=None):
         target_node = next(
             n for n in tree_data["nodes"] if n["id"] == edge["target"])
 
-        # Déterminer la couleur de l'arête (rouge si dans le chemin utilisateur)
-        edge_color = "#FF0000" if user_path and is_edge_in_path(
+        # Déterminer la couleur de l'arête (vert si dans le chemin utilisateur)
+        edge_color = "#00AA00" if user_path and is_edge_in_path(
             edge, user_path, tree_data) else "#CCCCCC"
-        edge_width = 5 if edge_color == "#FF0000" else 2
+        edge_width = 5 if edge_color == "#00AA00" else 2
 
         edge_trace.append(go.Scatter(
             x=[source_node["x"], target_node["x"], None],
@@ -415,7 +419,7 @@ def create_decision_tree_visualization(tree_data, user_path=None):
         margin=dict(b=50, l=50, r=50, t=80),
         annotations=[
             dict(
-                text="🔴 Chemin parcouru | 🔵 Questions | 🟢 Options | 🟠 Recommandations",
+                text="🟢 Chemin parcouru | 🔵 Questions | ⚫ Options | 🟠 Recommandations",
                 showarrow=False,
                 xref="paper", yref="paper",
                 x=0.5, y=-0.05,
