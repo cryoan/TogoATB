@@ -238,7 +238,7 @@ def create_decision_tree_visualization(tree_data, user_path=None):
     recommendation_nodes = [
         n for n in tree_data["nodes"] if n["type"] == "recommendation"]
 
-    # Trace pour les questions (avec disques)
+    # Trace pour les questions (avec disques bleus)
     question_trace = go.Scatter(
         x=[n["x"] for n in question_nodes],
         y=[n["y"] for n in question_nodes],
@@ -246,13 +246,20 @@ def create_decision_tree_visualization(tree_data, user_path=None):
         mode='markers+text',
         hoverinfo='text',
         textposition="middle center",
-        textfont=dict(size=12, color="black"),
+        textfont=dict(
+            size=[14 if user_path and is_node_in_path(
+                n, user_path) else 12 for n in question_nodes],
+            color=["white" if user_path and is_node_in_path(
+                n, user_path) else "white" for n in question_nodes],
+            family="Arial Black"
+        ),
         marker=dict(
-            size=[105 if user_path and is_node_in_path(
-                n, user_path) else 80 for n in question_nodes],
-            color=["#FFD700" if user_path and is_node_in_path(
+            size=[110 if user_path and is_node_in_path(
+                n, user_path) else 85 for n in question_nodes],
+            color=["#1E5091" if user_path and is_node_in_path(
                 n, user_path) else "#4472C4" for n in question_nodes],
-            line=dict(width=2, color='darkgray')
+            line=dict(width=[4 if user_path and is_node_in_path(n, user_path) else 2 for n in question_nodes],
+                      color=["#FFD700" if user_path and is_node_in_path(n, user_path) else "darkgray" for n in question_nodes])
         ),
         name="Questions",
         showlegend=False
@@ -277,7 +284,7 @@ def create_decision_tree_visualization(tree_data, user_path=None):
         showlegend=False
     )
 
-    # Trace pour les recommandations (avec disques)
+    # Trace pour les recommandations (avec rectangles)
     recommendation_trace = go.Scatter(
         x=[n["x"] for n in recommendation_nodes],
         y=[n["y"] for n in recommendation_nodes],
@@ -285,13 +292,20 @@ def create_decision_tree_visualization(tree_data, user_path=None):
         mode='markers+text',
         hoverinfo='text',
         textposition="middle center",
-        textfont=dict(size=9, color="black"),
+        textfont=dict(
+            size=[10 if user_path and is_node_in_path(
+                n, user_path) else 9 for n in recommendation_nodes],
+            color=["black" if user_path and is_node_in_path(
+                n, user_path) else "black" for n in recommendation_nodes]
+        ),
         marker=dict(
-            size=[125 if user_path and is_node_in_path(
-                n, user_path) else 100 for n in recommendation_nodes],
+            size=[130 if user_path and is_node_in_path(
+                n, user_path) else 105 for n in recommendation_nodes],
             color=["#FFD700" if user_path and is_node_in_path(
                 n, user_path) else "#FF8C00" for n in recommendation_nodes],
-            line=dict(width=2, color='darkgray')
+            line=dict(width=[4 if user_path and is_node_in_path(n, user_path) else 2 for n in recommendation_nodes],
+                      color=["#FF0000" if user_path and is_node_in_path(n, user_path) else "darkgray" for n in recommendation_nodes]),
+            symbol="square"  # Utiliser des rectangles pour les recommandations
         ),
         name="Recommandations",
         showlegend=False
